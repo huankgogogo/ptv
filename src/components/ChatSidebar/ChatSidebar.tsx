@@ -10,11 +10,9 @@ import type {
   EditOperation,
   ErrorCorrectionContext,
 } from "@/types/conversation";
-import {
-  MODELS,
-  type GenerationErrorType,
-  type ModelId,
-  type StreamPhase,
+import type {
+  GenerationErrorType,
+  StreamPhase,
 } from "@/types/generation";
 import { PanelLeftClose, PanelLeftOpen, RotateCcw } from "lucide-react";
 import {
@@ -22,7 +20,6 @@ import {
   useEffect,
   useImperativeHandle,
   useRef,
-  useState,
   type ComponentType,
 } from "react";
 import { ChatHistory } from "./ChatHistory";
@@ -110,7 +107,6 @@ export const ChatSidebar = forwardRef<ChatSidebarRef, ChatSidebarProps>(
     },
     ref,
   ) {
-    const [model, setModel] = useState<ModelId>(MODELS[1].id);
     const promptRef = useRef<string>("");
 
     const { isLoading, runGeneration } = useGenerationApi();
@@ -131,7 +127,6 @@ export const ChatSidebar = forwardRef<ChatSidebarRef, ChatSidebarProps>(
 
       await runGeneration(
         currentPrompt,
-        model,
         {
           currentCode,
           conversationHistory,
@@ -226,8 +221,6 @@ export const ChatSidebar = forwardRef<ChatSidebarRef, ChatSidebarProps>(
             <ChatInput
               prompt={prompt}
               onPromptChange={onPromptChange}
-              model={model}
-              onModelChange={setModel}
               isLoading={isLoading}
               onSubmit={(attachedImages) =>
                 handleGeneration({ attachedImages })
