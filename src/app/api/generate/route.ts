@@ -270,7 +270,9 @@ interface ErrorCorrectionContext {
 
 interface GenerateRequest {
   prompt: string;
-  model?: string;
+  llmBaseURL: string;
+  llmApiKey: string;
+  llmModel: string;
   currentCode?: string;
   conversationHistory?: ConversationContextMessage[];
   isFollowUp?: boolean;
@@ -297,7 +299,9 @@ interface GenerateResponse {
 export async function POST(req: Request) {
   const {
     prompt,
-    model = "gpt-5.2",
+    llmBaseURL,
+    llmApiKey,
+    llmModel,
     currentCode,
     conversationHistory = [],
     isFollowUp = false,
@@ -307,13 +311,11 @@ export async function POST(req: Request) {
     frameImages,
   }: GenerateRequest = await req.json();
 
-  const apiKey = process.env.OPENAI_API_KEY;
-
-  if (!apiKey) {
+  if (!llmBaseURL || !llmApiKey || !llmModel) {
     return new Response(
       JSON.stringify({
         error:
-          'The environment variable "OPENAI_API_KEY" is not set. Add it to your .env file and try again.',
+          "请在页面顶部的 API Settings 中配置 LLM Base URL、API Key 和 Model。",
       }),
       {
         status: 400,
@@ -322,16 +324,13 @@ export async function POST(req: Request) {
     );
   }
 
-  // Parse model ID - format can be "model-name" or "model-name:reasoning_effort"
-  const [modelName, reasoningEffort] = model.split(":");
-
-  const openai = createOpenAI({ apiKey });
+  const openai = createOpenAI({ baseURL: llmBaseURL, apiKey: llmApiKey });
 
   // Validate the prompt first (skip for follow-ups with existing code)
   if (!isFollowUp) {
     try {
       const validationResult = await generateObject({
-        model: openai("gpt-5.2"),
+        model: openai(llmModel),
         system: VALIDATION_PROMPT,
         prompt: `User prompt: "${prompt}"`,
         schema: z.object({ valid: z.boolean() }),
@@ -357,7 +356,7 @@ export async function POST(req: Request) {
   let detectedSkills: SkillName[] = [];
   try {
     const skillResult = await generateObject({
-      model: openai("gpt-5.2"),
+      model: openai(llmModel),
       system: SKILL_DETECTION_PROMPT,
       prompt: `User prompt: "${prompt}"`,
       schema: z.object({
@@ -480,7 +479,7 @@ Analyze the request and decide: use targeted edits (type: "edit") for small chan
         "Follow-up edit with prompt:",
         prompt,
         "model:",
-        modelName,
+        llmModel,
         "skills:",
         detectedSkills.length > 0 ? detectedSkills.join(", ") : "general",
         frameImages && frameImages.length > 0
@@ -510,7 +509,7 @@ Analyze the request and decide: use targeted edits (type: "edit") for small chan
       ];
 
       const editResult = await generateObject({
-        model: openai(modelName),
+        model: openai(llmModel),
         system: FOLLOW_UP_SYSTEM_PROMPT,
         messages: editMessages,
         schema: FollowUpResponseSchema,
@@ -564,7 +563,7 @@ Analyze the request and decide: use targeted edits (type: "edit") for small chan
           skills: detectedSkills,
           editType,
           edits: appliedEdits,
-          model: modelName,
+          model: llmModel,
         },
       };
 
@@ -613,26 +612,18 @@ Analyze the request and decide: use targeted edits (type: "edit") for small chan
     ];
 
     const result = streamText({
-      model: openai(modelName),
+      model: openai(llmModel),
       system: enhancedSystemPrompt,
       messages: initialMessages,
-      ...(reasoningEffort && {
-        providerOptions: {
-          openai: {
-            reasoningEffort: reasoningEffort,
-          },
-        },
-      }),
     });
 
     console.log(
       "Generating React component with prompt:",
       prompt,
       "model:",
-      modelName,
+      llmModel,
       "skills:",
       detectedSkills.length > 0 ? detectedSkills.join(", ") : "general",
-      reasoningEffort ? `reasoning_effort: ${reasoningEffort}` : "",
       hasImages ? `(with ${frameImages.length} image(s))` : "",
     );
 
