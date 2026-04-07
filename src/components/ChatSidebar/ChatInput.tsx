@@ -2,24 +2,14 @@
 
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { captureFrame } from "@/helpers/capture-frame";
 import { useImageAttachments } from "@/hooks/useImageAttachments";
-import { MODELS, type ModelId } from "@/types/generation";
 import { ArrowUp, Camera, Paperclip, X } from "lucide-react";
 import { useEffect, useState, type ComponentType } from "react";
 
 interface ChatInputProps {
   prompt: string;
   onPromptChange: (prompt: string) => void;
-  model: ModelId;
-  onModelChange: (model: ModelId) => void;
   isLoading: boolean;
   onSubmit: (attachedImages?: string[]) => void;
   // Frame capture props
@@ -32,8 +22,6 @@ interface ChatInputProps {
 export function ChatInput({
   prompt,
   onPromptChange,
-  model,
-  onModelChange,
   isLoading,
   onSubmit,
   Component,
@@ -178,28 +166,7 @@ export function ChatInput({
             className="hidden"
           />
 
-          <div className="flex justify-between items-center mt-2 pt-2 border-t border-border/50">
-            <Select
-              value={model}
-              onValueChange={(value) => onModelChange(value as ModelId)}
-              disabled={isLoading}
-            >
-              <SelectTrigger className="max-w-[140px] bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors text-xs h-7 px-2 truncate">
-                <SelectValue className="truncate" />
-              </SelectTrigger>
-              <SelectContent className="bg-background-elevated border-border">
-                {MODELS.map((m) => (
-                  <SelectItem
-                    key={m.id}
-                    value={m.id}
-                    className="text-foreground focus:bg-secondary focus:text-foreground text-xs"
-                  >
-                    {m.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
+          <div className="flex justify-end items-center mt-2 pt-2 border-t border-border/50">
             <div className="flex items-center gap-1">
               <Button
                 type="button"
