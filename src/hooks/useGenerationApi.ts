@@ -10,9 +10,9 @@ import type {
 } from "@/types/conversation";
 import type {
   GenerationErrorType,
-  ModelId,
   StreamPhase,
 } from "@/types/generation";
+import { useLLMConfig } from "@/hooks/useLLMConfig";
 import { useCallback, useState } from "react";
 
 interface FailedEditInfo {
@@ -59,7 +59,6 @@ interface UseGenerationApiReturn {
   isLoading: boolean;
   runGeneration: (
     prompt: string,
-    model: ModelId,
     context: GenerationContext,
     callbacks: GenerationCallbacks,
     options?: { silent?: boolean },
@@ -68,16 +67,24 @@ interface UseGenerationApiReturn {
 
 export function useGenerationApi(): UseGenerationApiReturn {
   const [isLoading, setIsLoading] = useState(false);
+  const { config, isConfigured } = useLLMConfig();
 
   const runGeneration = useCallback(
     async (
       prompt: string,
-      model: ModelId,
       context: GenerationContext,
       callbacks: GenerationCallbacks,
       options?: { silent?: boolean },
     ) => {
       if (!prompt.trim() || isLoading) return;
+
+      if (!isConfigured) {
+        callbacks.onError?.(
+          "请先在页面顶部的 API Settings 中配置 LLM Base URL、API Key 和 Model。",
+          "api",
+        );
+        return;
+      }
 
       const {
         currentCode,
@@ -116,7 +123,9 @@ export function useGenerationApi(): UseGenerationApiReturn {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             prompt,
-            model,
+            llmBaseURL: config.baseURL,
+            llmApiKey: config.apiKey,
+            llmModel: config.model,
             currentCode: isFollowUp ? currentCode : undefined,
             conversationHistory: isFollowUp ? conversationHistory : [],
             previouslyUsedSkills: isFollowUp ? previouslyUsedSkills : [],
@@ -239,7 +248,7 @@ export function useGenerationApi(): UseGenerationApiReturn {
         onClearPendingMessage?.();
       }
     },
-    [isLoading],
+    [isLoading, config, isConfigured],
   );
 
   return {
