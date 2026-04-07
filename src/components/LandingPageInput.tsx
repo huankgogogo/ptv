@@ -2,16 +2,8 @@
 
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { examplePrompts } from "@/examples/prompts";
 import { useImageAttachments } from "@/hooks/useImageAttachments";
-import { MODELS, type ModelId } from "@/types/generation";
 import {
   ArrowUp,
   BarChart3,
@@ -36,11 +28,7 @@ const iconMap: Record<string, LucideIcon> = {
 };
 
 interface LandingPageInputProps {
-  onNavigate: (
-    prompt: string,
-    model: ModelId,
-    attachedImages?: string[],
-  ) => void;
+  onNavigate: (prompt: string, attachedImages?: string[]) => void;
   isNavigating?: boolean;
   showCodeExamplesLink?: boolean;
 }
@@ -51,7 +39,6 @@ export function LandingPageInput({
   showCodeExamplesLink = false,
 }: LandingPageInputProps) {
   const [prompt, setPrompt] = useState("");
-  const [model, setModel] = useState<ModelId>("gpt-5.2:low");
   const {
     attachedImages,
     isDragging,
@@ -80,7 +67,6 @@ export function LandingPageInput({
     if (!prompt.trim() || isNavigating) return;
     onNavigate(
       prompt,
-      model,
       attachedImages.length > 0 ? attachedImages : undefined,
     );
   };
@@ -167,28 +153,7 @@ export function LandingPageInput({
             className="hidden"
           />
 
-          <div className="flex justify-between items-center mt-3 pt-3 border-t border-border">
-            <Select
-              value={model}
-              onValueChange={(value) => setModel(value as ModelId)}
-              disabled={isNavigating}
-            >
-              <SelectTrigger className="w-auto bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-background-elevated border-border">
-                {MODELS.map((m) => (
-                  <SelectItem
-                    key={m.id}
-                    value={m.id}
-                    className="text-foreground focus:bg-secondary focus:text-foreground"
-                  >
-                    {m.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
+          <div className="flex justify-end items-center mt-3 pt-3 border-t border-border">
             <div className="flex items-center gap-1">
               <Button
                 type="button"
