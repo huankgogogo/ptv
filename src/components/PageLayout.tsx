@@ -1,6 +1,7 @@
 "use client";
 
 import { Header } from "./Header";
+import { LLMSettingsModal } from "./LLMSettingsModal";
 
 interface PageLayoutProps {
   children: React.ReactNode;
@@ -17,7 +18,10 @@ export function PageLayout({
     <div className="h-screen w-screen bg-background flex flex-col">
       <header className="flex justify-between items-start py-8 px-12 shrink-0">
         <Header asLink={showLogoAsLink} />
-        {rightContent}
+        <div className="flex items-center gap-2">
+          {rightContent}
+          <LLMSettingsModal />
+        </div>
       </header>
       {children}
     </div>
