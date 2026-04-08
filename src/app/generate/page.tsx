@@ -22,6 +22,20 @@ import type { GenerationErrorType, StreamPhase } from "../../types/generation";
 
 const MAX_CORRECTION_ATTEMPTS = 3;
 
+function parseRemotionConfig(code: string): { durationInFrames: number; fps: number } | null {
+  const match = code.match(/\/\/ @remotion-config ({.*})/);
+  if (!match) return null;
+  try {
+    const config = JSON.parse(match[1]) as { durationInFrames?: unknown; fps?: unknown };
+    if (typeof config.durationInFrames === "number" && typeof config.fps === "number") {
+      return { durationInFrames: config.durationInFrames, fps: config.fps };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function GeneratePageContent() {
   const searchParams = useSearchParams();
   const initialPrompt = searchParams.get("prompt") || "";
@@ -30,10 +44,8 @@ function GeneratePageContent() {
   // so syntax highlighting is disabled from the beginning
   const willAutoStart = Boolean(initialPrompt);
 
-  const [durationInFrames, setDurationInFrames] = useState(
-    examples[0]?.durationInFrames || 150,
-  );
-  const [fps, setFps] = useState(examples[0]?.fps || 30);
+  const [durationInFrames, setDurationInFrames] = useState(300);
+  const [fps, setFps] = useState(30);
   const [currentFrame, setCurrentFrame] = useState(0);
   const [isStreaming, setIsStreaming] = useState(willAutoStart);
   const [streamPhase, setStreamPhase] = useState<StreamPhase>(
@@ -185,8 +197,13 @@ function GeneratePageContent() {
         summary || "Generated your animation, any follow up edits?";
       addAssistantMessage(content, generatedCode, metadata);
       markAsAiGenerated();
+      const config = parseRemotionConfig(generatedCode);
+      if (config) {
+        setDurationInFrames(config.durationInFrames);
+        setFps(config.fps);
+      }
     },
-    [addAssistantMessage, markAsAiGenerated],
+    [addAssistantMessage, markAsAiGenerated, setDurationInFrames, setFps],
   );
 
   // Cleanup debounce on unmount
@@ -242,9 +259,12 @@ function GeneratePageContent() {
         }
         sessionStorage.removeItem("initialAttachedImages");
       }
+      const storedUrlContent = sessionStorage.getItem("initialUrlContent") ?? undefined;
+      sessionStorage.removeItem("initialUrlContent");
       setTimeout(() => {
         chatSidebarRef.current?.triggerGeneration({
           attachedImages: storedImages,
+          urlContent: storedUrlContent,
         });
       }, 100);
     }
