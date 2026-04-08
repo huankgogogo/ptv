@@ -32,8 +32,13 @@ export interface CompilationResult {
 // Strip imports and extract component body from LLM-generated code
 // Safety layer in case LLM includes full ES6 syntax despite instructions
 function extractComponentBody(code: string): string {
+  // Strip markdown fences if LLM wraps code in ```tsx / ``` blocks
+  let cleaned = code.replace(/^```[a-z]*\n?/gm, "").replace(/^```\s*$/gm, "").trim();
+
+  // Strip @remotion-config annotation (used for player config, not needed at runtime)
+  cleaned = cleaned.replace(/^\/\/ @remotion-config \{[^\n]*\}\n?/, "");
+
   // Strip all import statements (handles multi-line imports with newlines in braces)
-  let cleaned = code;
 
   // Remove type imports: import type { ... } from "...";
   cleaned = cleaned.replace(
@@ -64,7 +69,7 @@ function extractComponentBody(code: string): string {
 
   // Extract body from "export const MyAnimation = () => { ... };"
   const match = cleaned.match(
-    /^([\s\S]*?)export\s+const\s+\w+\s*=\s*\(\s*\)\s*=>\s*\{([\s\S]*)\};?\s*$/,
+    /^([\s\S]*?)export\s+const\s+\w+(?:\s*:\s*[^=]+)?\s*=\s*\([^)]*\)\s*(?::\s*[^=>{]+)?\s*=>\s*\{([\s\S]*)\};?\s*$/,
   );
 
   if (match) {
@@ -88,6 +93,7 @@ export function compileCode(code: string): CompilationResult {
 
     const transpiled = Babel.transform(wrappedSource, {
       presets: ["react", "typescript"],
+      plugins: ["transform-template-literals"],
       filename: "dynamic-animation.tsx",
     });
 
