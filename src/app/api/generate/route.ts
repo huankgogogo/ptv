@@ -1,9 +1,11 @@
 import {
+  CORE_SKILL_CONTENT,
   getCombinedSkillContent,
   SKILL_DETECTION_PROMPT,
   SKILL_NAMES,
   type SkillName,
 } from "@/skills";
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateObject, streamText } from "ai";
 import { z } from "zod";
@@ -38,6 +40,15 @@ Return true if the prompt is valid for motion graphics generation, false otherwi
 
 const SYSTEM_PROMPT = `
 You are an expert in generating React components for Remotion animations.
+
+CRITICAL OUTPUT RULE: Your entire response must be raw code only. The first word must be "import". No natural language, no markdown fences, no explanations — ever. If you need to comment, use // inside the code. Violating this causes a compilation error.
+
+## REMOTION CORE RULES
+
+${CORE_SKILL_CONTENT}
+
+
+CRITICAL: Output ONLY raw code. Never wrap code in markdown fences (\`\`\`tsx, \`\`\`js, etc.). Never add any explanation text before or after the code.
 
 ## COMPONENT STRUCTURE
 
@@ -76,7 +87,7 @@ This allows users to easily customize the animation.
 ## AVAILABLE IMPORTS
 
 \`\`\`tsx
-import { useCurrentFrame, useVideoConfig, AbsoluteFill, interpolate, spring, Sequence } from "remotion";
+import { useCurrentFrame, useVideoConfig, AbsoluteFill, interpolate, spring, Sequence, Easing, Series, Img, staticFile, Video } from "remotion";
 import { TransitionSeries, linearTiming, springTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import { slide } from "@remotion/transitions/slide";
@@ -99,11 +110,17 @@ NEVER use these as variable names - they shadow imports:
 
 ## OUTPUT FORMAT (CRITICAL)
 
-- Output ONLY code - no explanations, no questions
-- Response must start with "import" and end with "};"
-- If prompt is ambiguous, make a reasonable choice - do not ask for clarification
+- The very first line of your output MUST be the config comment (before any imports):
+  // @remotion-config {"durationInFrames":300,"fps":30}
+  Adjust durationInFrames and fps to suit the animation's natural length. Default: 300 frames at 30fps = 10 seconds. Example: a 5-second animation → {"durationInFrames":150,"fps":30}.
+- Output ONLY code. Zero natural language anywhere in the response.
+- The very first import must come on line 2. The very last characters must be "};".
+- NEVER write explanations, questions, or comments as plain text — use JavaScript \`//\` comments inside the code if needed.
+- If the prompt is ambiguous or lacks content, make a reasonable creative choice and generate code immediately. Do not ask for clarification.
+- Violating this rule causes a compilation error that breaks the entire application.
 
 `;
+
 
 const FOLLOW_UP_SYSTEM_PROMPT = `
 You are an expert at making targeted edits to React/Remotion animation components.
@@ -138,6 +155,16 @@ CRITICAL:
 
 ## PRESERVING USER EDITS
 If the user has made manual edits, preserve them unless explicitly asked to change.
+
+## DURATION CONFIG
+
+The current code always has a @remotion-config comment on line 1.
+If the user asks to change video duration or fps:
+- For type "edit": include an edit that updates the comment. Example:
+  old_string: '// @remotion-config {"durationInFrames":300,"fps":30}'
+  new_string: '// @remotion-config {"durationInFrames":450,"fps":30}'
+- For type "full": include the updated comment on line 1 of the replacement code.
+If the user does NOT ask to change duration, leave the comment unchanged.
 `;
 
 // Schema for follow-up edit responses
@@ -158,6 +185,7 @@ const FollowUpResponseSchema = z.object({
       z.object({
         description: z
           .string()
+          .optional()
           .describe(
             "Brief description of this edit, e.g. 'Update background color', 'Increase animation duration'",
           ),
@@ -180,7 +208,7 @@ const FollowUpResponseSchema = z.object({
 });
 
 type EditOperation = {
-  description: string;
+  description?: string;
   old_string: string;
   new_string: string;
   lineNumber?: number;
@@ -283,6 +311,8 @@ interface GenerateRequest {
   previouslyUsedSkills?: string[];
   /** Base64 image data URLs for visual context */
   frameImages?: string[];
+  /** Scraped text content from a user-provided URL */
+  urlContent?: string;
 }
 
 interface GenerateResponse {
@@ -309,6 +339,7 @@ export async function POST(req: Request) {
     errorCorrection,
     previouslyUsedSkills = [],
     frameImages,
+    urlContent,
   }: GenerateRequest = await req.json();
 
   if (!llmBaseURL || !llmApiKey || !llmModel) {
@@ -324,13 +355,13 @@ export async function POST(req: Request) {
     );
   }
 
-  const openai = createOpenAI({ baseURL: llmBaseURL, apiKey: llmApiKey });
+  const anthropic = createAnthropic({ baseURL: llmBaseURL, apiKey: llmApiKey });
 
   // Validate the prompt first (skip for follow-ups with existing code)
   if (!isFollowUp) {
     try {
       const validationResult = await generateObject({
-        model: openai(llmModel),
+        model: anthropic(llmModel),
         system: VALIDATION_PROMPT,
         prompt: `User prompt: "${prompt}"`,
         schema: z.object({ valid: z.boolean() }),
@@ -355,10 +386,13 @@ export async function POST(req: Request) {
   // Detect which skills apply to this prompt
   let detectedSkills: SkillName[] = [];
   try {
+    const skillDetectionInput = urlContent
+      ? `User prompt: "${prompt}"\n\nArticle content (excerpt): ${urlContent.slice(0, 800)}`
+      : `User prompt: "${prompt}"`;
     const skillResult = await generateObject({
-      model: openai(llmModel),
+      model: anthropic(llmModel),
       system: SKILL_DETECTION_PROMPT,
-      prompt: `User prompt: "${prompt}"`,
+      prompt: skillDetectionInput,
       schema: z.object({
         skills: z.array(z.enum(SKILL_NAMES)),
       }),
@@ -509,7 +543,7 @@ Analyze the request and decide: use targeted edits (type: "edit") for small chan
       ];
 
       const editResult = await generateObject({
-        model: openai(llmModel),
+        model: anthropic(llmModel),
         system: FOLLOW_UP_SYSTEM_PROMPT,
         messages: editMessages,
         schema: FollowUpResponseSchema,
@@ -586,9 +620,12 @@ Analyze the request and decide: use targeted edits (type: "edit") for small chan
   try {
     // Build messages for initial generation (supports image references)
     const hasImages = frameImages && frameImages.length > 0;
+    const urlSection = urlContent
+      ? `\n\n## REFERENCE CONTENT FROM URL:\n${urlContent}\n\nUse the above content as inspiration and source material for the animation.`
+      : "";
     const initialPromptText = hasImages
-      ? `${prompt}\n\n(See the attached ${frameImages.length === 1 ? "image" : "images"} for visual reference)`
-      : prompt;
+      ? `${prompt}${urlSection}\n\n(See the attached ${frameImages.length === 1 ? "image" : "images"} for visual reference)`
+      : `${prompt}${urlSection}`;
 
     const initialMessageContent: Array<
       { type: "text"; text: string } | { type: "image"; image: string }
@@ -612,7 +649,7 @@ Analyze the request and decide: use targeted edits (type: "edit") for small chan
     ];
 
     const result = streamText({
-      model: openai(llmModel),
+      model: anthropic(llmModel),
       system: enhancedSystemPrompt,
       messages: initialMessages,
     });
