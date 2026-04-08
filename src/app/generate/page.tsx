@@ -23,11 +23,16 @@ import type { GenerationErrorType, StreamPhase } from "../../types/generation";
 const MAX_CORRECTION_ATTEMPTS = 3;
 
 function parseRemotionConfig(code: string): { durationInFrames: number; fps: number } | null {
-  const match = code.match(/\/\/ @remotion-config ({.*})/);
+  const match = code.match(/\/\/ @remotion-config ({[^\n]*})/);
   if (!match) return null;
   try {
     const config = JSON.parse(match[1]) as { durationInFrames?: unknown; fps?: unknown };
-    if (typeof config.durationInFrames === "number" && typeof config.fps === "number") {
+    if (
+      typeof config.durationInFrames === "number" &&
+      typeof config.fps === "number" &&
+      config.durationInFrames > 0 &&
+      config.fps > 0
+    ) {
       return { durationInFrames: config.durationInFrames, fps: config.fps };
     }
     return null;
