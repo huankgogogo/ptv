@@ -29,6 +29,7 @@ export interface ChatSidebarRef {
   triggerGeneration: (options?: {
     silent?: boolean;
     attachedImages?: string[];
+    urlContent?: string;
   }) => void;
 }
 
@@ -119,6 +120,7 @@ export const ChatSidebar = forwardRef<ChatSidebarRef, ChatSidebarProps>(
     const handleGeneration = async (options?: {
       silent?: boolean;
       attachedImages?: string[];
+      urlContent?: string;
     }) => {
       const currentPrompt = promptRef.current;
       if (!currentPrompt.trim()) return;
@@ -135,6 +137,7 @@ export const ChatSidebar = forwardRef<ChatSidebarRef, ChatSidebarProps>(
           hasManualEdits,
           errorCorrection,
           frameImages: options?.attachedImages,
+          urlContent: options?.urlContent,
         },
         {
           onCodeGenerated,
@@ -162,7 +165,7 @@ export const ChatSidebar = forwardRef<ChatSidebarRef, ChatSidebarProps>(
           "flex flex-col bg-background transition-all duration-300",
           isCollapsed
             ? "w-12 shrink-0"
-            : "w-full h-[40vh] min-[1000px]:h-auto min-[1000px]:w-[40%] min-[1000px]:min-w-[320px] min-[1000px]:max-w-[520px] shrink",
+            : "w-full h-[40vh] min-[1000px]:h-auto min-[1000px]:w-[40%] min-[1000px]:min-w-[320px] min-[1000px]:max-w-130 shrink",
         )}
       >
         {isCollapsed ? (
@@ -222,8 +225,8 @@ export const ChatSidebar = forwardRef<ChatSidebarRef, ChatSidebarProps>(
               prompt={prompt}
               onPromptChange={onPromptChange}
               isLoading={isLoading}
-              onSubmit={(attachedImages) =>
-                handleGeneration({ attachedImages })
+              onSubmit={(attachedImages, urlContent) =>
+                handleGeneration({ attachedImages, urlContent })
               }
               Component={Component}
               fps={fps}

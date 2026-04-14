@@ -2,15 +2,15 @@
 name: sequencing
 description: Sequencing patterns for Remotion - delay, trim, limit duration of items
 metadata:
-  tags: sequence, series, timing, delay, trim, premount
+  tags: sequence, series, timing, delay, trim
 ---
 
 Use `<Sequence>` to delay when an element appears in the timeline.
 
 ```tsx
-import { Sequence, useVideoConfig } from "remotion";
+import { Sequence } from "remotion";
 
-const { fps } = useVideoConfig();
+const {fps} = useVideoConfig();
 
 <Sequence from={1 * fps} durationInFrames={2 * fps} premountFor={1 * fps}>
   <Title />
@@ -32,7 +32,7 @@ If the items should not be wrapped, use the `layout` prop:
 ## Premounting
 
 This loads the component in the timeline before it is actually played.  
-**Always premount any `<Sequence>`!**
+Always premount any `<Sequence>`!
 
 ```tsx
 <Sequence premountFor={1 * fps}>
@@ -60,7 +60,7 @@ import { Series } from "remotion";
 </Series>;
 ```
 
-Same as with `<Sequence>`, items will be wrapped in an absolute fill element by default, unless `layout="none"` is set.
+Same as with `<Sequence>`, the items will be wrapped in an absolute fill element by default when using `<Series.Sequence>`, unless the `layout` prop is set to `none`.
 
 ### Series with overlaps
 
@@ -105,29 +105,14 @@ Sequences can be nested for complex timing:
 </Sequence>
 ```
 
-## Staggered Entrances
+## Nesting compositions within another
 
-For staggered animations of multiple items, calculate delays with fps:
+To add a composition within another composition, you can use the `<Sequence>` component with a `width` and `height` prop to specify the size of the composition.
 
 ```tsx
-const { fps } = useVideoConfig();
-const STAGGER_DELAY = Math.round(0.1 * fps); // 0.1s between each item
-
-const items = data.map((item, i) => {
-  const delay = i * STAGGER_DELAY;
-  const progress = spring({
-    frame: frame - delay,
-    fps,
-    config: { damping: 200 },
-  });
-  return (
-    <Item
-      key={i}
-      style={{
-        opacity: progress,
-        transform: `translateY(${(1 - progress) * 20}px)`,
-      }}
-    />
-  );
-});
+<AbsoluteFill>
+  <Sequence width={COMPOSITION_WIDTH} height={COMPOSITION_HEIGHT}>
+    <CompositionComponent />
+  </Sequence>
+</AbsoluteFill>
 ```

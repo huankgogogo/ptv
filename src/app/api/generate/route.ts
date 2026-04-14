@@ -6,7 +6,6 @@ import {
   type SkillName,
 } from "@/skills";
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { createOpenAI } from "@ai-sdk/openai";
 import { generateObject, streamText } from "ai";
 import { z } from "zod";
 
@@ -43,6 +42,24 @@ You are an expert in generating React components for Remotion animations.
 
 CRITICAL OUTPUT RULE: Your entire response must be raw code only. The first line must be "// @remotion-config {...}". The second line must start with "import". No natural language, no markdown fences, no explanations — ever. If you need to comment, use // inside the code. Violating this causes a compilation error.
 
+ABSOLUTELY FORBIDDEN — these patterns break compilation:
+❌ WRONG (causes error):
+  const MyAnimation = () => {
+    I need to create a blue animation with...   ← plain English sentence, NOT code
+    Since no URL was provided, I will...        ← reasoning text, NOT code
+
+✅ CORRECT (use JS comment syntax if you must describe):
+  const MyAnimation = () => {
+    // Blue sci-fi animation, ~20s, punchy rhythm
+    const frame = useCurrentFrame();
+
+## ARTICLE CONTENT RULE (CRITICAL)
+
+When the user message includes a "## REFERENCE CONTENT FROM URL (MUST USE):" section, you MUST:
+1. Extract the actual headlines, statistics, quotes, key data points, and topics from that article
+2. Use them directly as the text and data content shown in the animation
+3. NEVER substitute generic placeholder text or unrelated content when article content is provided
+
 ## REMOTION CORE RULES
 
 ${CORE_SKILL_CONTENT}
@@ -56,7 +73,7 @@ CRITICAL: Output ONLY raw code. Never wrap code in markdown fences (\`\`\`tsx, \
 2. Start with ES6 imports (line 2 onward)
 3. Export as: export const MyAnimation = () => { ... };
 4. Component body order:
-   - Multi-line comment description (2-3 sentences)
+   - Optional: ONE JS comment line describing the animation (e.g. // Blue tech visualization, 20s)
    - Hooks (useCurrentFrame, useVideoConfig, etc.)
    - Constants (COLORS, TEXT, TIMING, LAYOUT) - all UPPER_SNAKE_CASE
    - Calculations and derived values
@@ -102,6 +119,19 @@ import { useState, useEffect } from "react";
 NEVER use these as variable names - they shadow imports:
 - spring, interpolate, useCurrentFrame, useVideoConfig, AbsoluteFill, Sequence
 
+CASING ERRORS — these cause "X is not defined" at runtime:
+- WRONG: easing (lowercase) — RIGHT: Easing (capital E, imported from "remotion")
+  Use as: { easing: Easing.ease } or Easing.bezier(0.25, 0.1, 0.25, 1)
+- WRONG: img, video, sequence — RIGHT: Img, Video, Sequence
+
+## USING REFERENCE CONTENT FROM URL
+
+When the user message contains a "## REFERENCE CONTENT FROM URL:" section:
+- You MUST use it as the primary source of content for the animation
+- Extract key information: headlines, statistics, quotes, themes, data, or key points
+- Visualize this information directly — use the actual text, numbers, and topics from the article
+- Do NOT fall back to generic or placeholder content when article content is available
+
 ## STYLING RULES
 
 - Use inline styles only
@@ -121,7 +151,6 @@ NEVER use these as variable names - they shadow imports:
 - Violating this rule causes a compilation error that breaks the entire application.
 
 `;
-
 
 const FOLLOW_UP_SYSTEM_PROMPT = `
 You are an expert at making targeted edits to React/Remotion animation components.
@@ -153,6 +182,10 @@ CRITICAL:
 - Include enough surrounding context to make old_string unique
 - If multiple similar lines exist, include more surrounding code
 - Preserve indentation exactly as it appears in the original
+
+## USING REFERENCE CONTENT FROM URL
+
+When the edit prompt contains a "## REFERENCE CONTENT FROM URL:" section, use it as the primary source of content for the animation. Extract key information, themes, statistics, quotes, or data from the article and incorporate them into the edits.
 
 ## PRESERVING USER EDITS
 If the user has made manual edits, preserve them unless explicitly asked to change.
@@ -497,6 +530,10 @@ Focus ONLY on fixing the error. Do not make other changes.`;
         }
       }
 
+      const urlSection = urlContent
+        ? `\n\n## REFERENCE CONTENT FROM URL (MUST USE):\n${urlContent}\n\nCRITICAL: You MUST incorporate the above article content into the animation. Use the actual headlines, statistics, quotes, key points, and topics from the article. Do NOT generate generic or unrelated content.`
+        : "";
+
       const editPromptText = `## CURRENT CODE:
 \`\`\`tsx
 ${currentCode}
@@ -507,6 +544,7 @@ ${errorCorrectionNotice}
 
 ## USER REQUEST:
 ${prompt}
+${urlSection}
 ${frameImages && frameImages.length > 0 ? `\n(See the attached ${frameImages.length === 1 ? "image" : "images"} for visual reference)` : ""}
 
 Analyze the request and decide: use targeted edits (type: "edit") for small changes, or full replacement (type: "full") for major restructuring.`;
@@ -623,7 +661,7 @@ Analyze the request and decide: use targeted edits (type: "edit") for small chan
     // Build messages for initial generation (supports image references)
     const hasImages = frameImages && frameImages.length > 0;
     const urlSection = urlContent
-      ? `\n\n## REFERENCE CONTENT FROM URL:\n${urlContent}\n\nUse the above content as inspiration and source material for the animation.`
+      ? `\n\n## REFERENCE CONTENT FROM URL (MUST USE):\n${urlContent}\n\nCRITICAL: You MUST base the animation directly on the above article content. Use the actual headlines, statistics, quotes, key points, and topics from the article. Do NOT generate generic or unrelated content.`
       : "";
     const initialPromptText = hasImages
       ? `${prompt}${urlSection}\n\n(See the attached ${frameImages.length === 1 ? "image" : "images"} for visual reference)`

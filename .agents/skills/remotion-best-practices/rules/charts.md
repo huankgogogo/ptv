@@ -30,50 +30,12 @@ const bars = data.map((item, i) => {
 });
 ```
 
-## Always Include Y-Axis Labels
-
-Charts without axis labels are hard to read. Always add labeled tick marks.
-
-```tsx
-const yAxisSteps = [0, 25, 50, 75, 100];
-
-<div style={{ display: "flex" }}>
-  <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-    {yAxisSteps.reverse().map((step) => (
-      <span key={step} style={{ fontSize: 12, color: "#888" }}>{step}</span>
-    ))}
-  </div>
-  <div style={{ display: "flex", alignItems: "flex-end", gap: 8, borderLeft: "1px solid #333" }}>
-    {bars}
-  </div>
-</div>;
-```
-
-## Value Labels Inside Bars
-
-Position value labels inside bars when height is sufficient, fade in after bar animates.
-
-```tsx
-const barHeight = normalizedHeight * progress;
-
-<div style={{ height: barHeight, backgroundColor: COLOR_BAR }}>
-  {barHeight > 30 && (
-    <span style={{ opacity: progress, fontSize: 11 }}>
-      {item.value.toLocaleString()}
-    </span>
-  )}
-</div>;
-```
-
 ## Pie Chart
 
 Animate segments using stroke-dashoffset, starting from 12 o'clock:
 
 ```tsx
-const progress = interpolate(frame, [0, 2 * fps], [0, 1], {
-  extrapolateLeft: "clamp",
-  extrapolateRight: "clamp",
-});
+const progress = interpolate(frame, [0, 100], [0, 1]);
 const circumference = 2 * Math.PI * radius;
 const segmentLength = (value / total) * circumference;
 const offset = interpolate(progress, [0, 1], [segmentLength, 0]);
@@ -95,6 +57,9 @@ const offset = interpolate(progress, [0, 1], [segmentLength, 0]);
 
 Use `@remotion/paths` for animating SVG paths (line charts, stock graphs, signatures).
 
+Install: `npx remotion add @remotion/paths`  
+Docs: https://remotion.dev/docs/paths.md
+
 ### Convert data points to SVG path
 
 ```tsx
@@ -110,7 +75,6 @@ const generateLinePath = (points: Point[]): string => {
 
 ```tsx
 import { evolvePath } from "@remotion/paths";
-import { Easing } from "remotion";
 
 const path = "M 100 200 L 200 150 L 300 180 L 400 100";
 const progress = interpolate(frame, [0, 2 * fps], [0, 1], {
@@ -129,4 +93,28 @@ const { strokeDasharray, strokeDashoffset } = evolvePath(progress, path);
   strokeDasharray={strokeDasharray}
   strokeDashoffset={strokeDashoffset}
 />;
+```
+
+### Follow path with marker/arrow
+
+```tsx
+import {
+  getLength,
+  getPointAtLength,
+  getTangentAtLength,
+} from "@remotion/paths";
+
+const pathLength = getLength(path);
+const point = getPointAtLength(path, progress * pathLength);
+const tangent = getTangentAtLength(path, progress * pathLength);
+const angle = Math.atan2(tangent.y, tangent.x);
+
+<g
+  style={{
+    transform: `translate(${point.x}px, ${point.y}px) rotate(${angle}rad)`,
+    transformOrigin: "0 0",
+  }}
+>
+  <polygon points="0,0 -20,-10 -20,10" fill="#FF3232" />
+</g>;
 ```

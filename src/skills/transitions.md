@@ -1,26 +1,18 @@
 ---
-title: Scene Transitions
-impact: HIGH
-impactDescription: enables smooth scene changes and professional video flow
-tags: transitions, fade, slide, wipe, scenes
+name: transitions
+description: Scene transitions and overlays for Remotion using TransitionSeries
+metadata:
+  tags: transitions, overlays, fade, slide, wipe, scenes
 ---
 
-## TransitionSeries for Scene Changes
+## TransitionSeries
 
-Use TransitionSeries to animate between multiple scenes or clips.
+`<TransitionSeries>` arranges scenes and supports two ways to enhance the cut point:
 
-**Incorrect (abrupt scene cuts):**
+- **Transitions** (`<TransitionSeries.Transition>`) — crossfade, slide, wipe, etc. Shortens timeline because both scenes play simultaneously during transition.
+- **Overlays** (`<TransitionSeries.Overlay>`) — render an effect on top of the cut point without shortening the timeline.
 
-```tsx
-<Sequence from={0} durationInFrames={60}>
-  <SceneA />
-</Sequence>
-<Sequence from={60} durationInFrames={60}>
-  <SceneB />
-</Sequence>
-```
-
-**Correct (smooth transitions):**
+## Transition example
 
 ```tsx
 import { TransitionSeries, linearTiming } from "@remotion/transitions";
@@ -40,9 +32,7 @@ import { fade } from "@remotion/transitions/fade";
 </TransitionSeries>;
 ```
 
-## Available Transition Types
-
-Import transitions from their respective modules:
+## Available transition types
 
 ```tsx
 import { fade } from "@remotion/transitions/fade";
@@ -52,13 +42,9 @@ import { flip } from "@remotion/transitions/flip";
 import { clockWipe } from "@remotion/transitions/clock-wipe";
 ```
 
-## Slide Transition with Direction
-
-Specify slide direction for enter/exit animations.
+## Slide transition with direction
 
 ```tsx
-import { slide } from "@remotion/transitions/slide";
-
 <TransitionSeries.Transition
   presentation={slide({ direction: "from-left" })}
   timing={linearTiming({ durationInFrames: 20 })}
@@ -67,7 +53,28 @@ import { slide } from "@remotion/transitions/slide";
 
 Directions: `"from-left"`, `"from-right"`, `"from-top"`, `"from-bottom"`
 
-## Custom Crossfade Without TransitionSeries
+## Timing options
+
+```tsx
+import { linearTiming, springTiming } from "@remotion/transitions";
+
+// Linear timing - constant speed
+linearTiming({ durationInFrames: 20 });
+
+// Spring timing - organic motion
+springTiming({ config: { damping: 200 }, durationInFrames: 25 });
+```
+
+## Duration calculation
+
+Transitions overlap adjacent scenes, so total composition length is **shorter** than sum of all sequence durations.
+
+For example, with two 60-frame sequences and a 15-frame transition:
+
+- Without transitions: `60 + 60 = 120` frames
+- With transition: `60 + 60 - 15 = 105` frames
+
+## Custom crossfade without TransitionSeries
 
 For simple opacity crossfades within a single component:
 
@@ -91,16 +98,4 @@ const scene2Opacity = interpolate(
 
 <AbsoluteFill style={{ opacity: scene1Opacity }}><SceneA /></AbsoluteFill>
 <AbsoluteFill style={{ opacity: scene2Opacity }}><SceneB /></AbsoluteFill>
-```
-
-## Timing Options
-
-```tsx
-import { linearTiming, springTiming } from "@remotion/transitions";
-
-// Linear timing - constant speed
-linearTiming({ durationInFrames: 20 });
-
-// Spring timing - organic motion
-springTiming({ config: { damping: 200 }, durationInFrames: 25 });
 ```

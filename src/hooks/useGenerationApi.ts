@@ -1,5 +1,6 @@
 import {
   extractComponentCode,
+  removeLeadingNaturalLanguage,
   stripMarkdownFences,
   validateGptResponse,
 } from "@/helpers/sanitize-response";
@@ -53,6 +54,7 @@ interface GenerationContext {
   hasManualEdits: boolean;
   errorCorrection?: ErrorCorrectionContext;
   frameImages?: string[];
+  urlContent?: string;
 }
 
 interface UseGenerationApiReturn {
@@ -94,6 +96,7 @@ export function useGenerationApi(): UseGenerationApiReturn {
         hasManualEdits,
         errorCorrection,
         frameImages,
+        urlContent,
       } = context;
 
       const {
@@ -133,6 +136,7 @@ export function useGenerationApi(): UseGenerationApiReturn {
             hasManualEdits,
             errorCorrection,
             frameImages,
+            urlContent,
           }),
         });
 
@@ -222,6 +226,7 @@ export function useGenerationApi(): UseGenerationApiReturn {
 
         let finalCode = stripMarkdownFences(accumulatedText);
         finalCode = extractComponentCode(finalCode);
+        finalCode = removeLeadingNaturalLanguage(finalCode);
         onCodeGenerated?.(finalCode);
         onClearPendingMessage?.();
         onGenerationComplete?.(

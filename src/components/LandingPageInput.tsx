@@ -9,6 +9,8 @@ import {
   BarChart3,
   Disc,
   Hash,
+  Link,
+  Loader2,
   MessageCircle,
   Paperclip,
   SquareArrowOutUpRight,
@@ -16,8 +18,8 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import NextLink from "next/link";
+import { useEffect, useRef, useState } from "react";
 
 const iconMap: Record<string, LucideIcon> = {
   Type,
@@ -28,7 +30,7 @@ const iconMap: Record<string, LucideIcon> = {
 };
 
 interface LandingPageInputProps {
-  onNavigate: (prompt: string, attachedImages?: string[]) => void;
+  onNavigate: (prompt: string, attachedImages?: string[], urlContent?: string) => void;
   isNavigating?: boolean;
   showCodeExamplesLink?: boolean;
 }
@@ -39,6 +41,12 @@ export function LandingPageInput({
   showCodeExamplesLink = false,
 }: LandingPageInputProps) {
   const [prompt, setPrompt] = useState("");
+  const [urlInput, setUrlInput] = useState("");
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [isFetchingUrl, setIsFetchingUrl] = useState(false);
+  const [fetchedUrl, setFetchedUrl] = useState<{ url: string; content: string; title: string } | null>(null);
+  const [urlError, setUrlError] = useState<string | null>(null);
+  const urlInputRef = useRef<HTMLInputElement>(null);
   const {
     attachedImages,
     isDragging,
@@ -62,13 +70,47 @@ export function LandingPageInput({
     }
   }, [error, clearError]);
 
+  // Focus URL input when shown
+  useEffect(() => {
+    if (showUrlInput) urlInputRef.current?.focus();
+  }, [showUrlInput]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!prompt.trim() || isNavigating) return;
     onNavigate(
       prompt,
       attachedImages.length > 0 ? attachedImages : undefined,
+      fetchedUrl?.content,
     );
+  };
+
+  const handleFetchUrl = async () => {
+    const url = urlInput.trim();
+    if (!url) return;
+    setIsFetchingUrl(true);
+    setUrlError(null);
+    try {
+      const res = await fetch("/api/fetch-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch URL");
+      setFetchedUrl({ url, content: data.content, title: data.title || url });
+      setShowUrlInput(false);
+      setUrlInput("");
+    } catch (err) {
+      setUrlError(err instanceof Error ? err.message : "Failed to fetch URL");
+    } finally {
+      setIsFetchingUrl(false);
+    }
+  };
+
+  const handleUrlKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") { e.preventDefault(); handleFetchUrl(); }
+    if (e.key === "Escape") { setShowUrlInput(false); setUrlInput(""); setUrlError(null); }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -109,7 +151,7 @@ export function LandingPageInput({
           {attachedImages.length > 0 && (
             <div className="mb-3 flex gap-2 overflow-x-auto pb-1 pt-2">
               {attachedImages.map((img, index) => (
-                <div key={index} className="relative flex-shrink-0">
+                <div key={index} className="relative shrink-0">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={img}
@@ -128,6 +170,61 @@ export function LandingPageInput({
             </div>
           )}
 
+          {/* Fetched URL badge */}
+          {fetchedUrl && (
+            <div className="mb-3 flex items-center gap-1.5 bg-blue-500/10 border border-blue-500/30 rounded-lg px-2 py-1.5">
+              <Link className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              <span className="text-xs text-blue-300 truncate flex-1">
+                {fetchedUrl.title || fetchedUrl.url}
+              </span>
+              <button
+                type="button"
+                onClick={() => setFetchedUrl(null)}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* URL input inline */}
+          {showUrlInput && (
+            <div className="mb-3">
+              <div className="flex gap-2 items-center">
+                <input
+                  ref={urlInputRef}
+                  type="url"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  onKeyDown={handleUrlKeyDown}
+                  placeholder="https://example.com"
+                  className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground-dim focus:outline-none border-b border-border pb-0.5"
+                  disabled={isFetchingUrl}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleFetchUrl}
+                  disabled={!urlInput.trim() || isFetchingUrl}
+                  className="h-7 px-2 text-xs text-blue-400 hover:text-blue-300"
+                >
+                  {isFetchingUrl ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Fetch"}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => { setShowUrlInput(false); setUrlError(null); }}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              {urlError && (
+                <p className="text-xs text-destructive mt-1">{urlError}</p>
+              )}
+            </div>
+          )}
+
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
@@ -138,7 +235,7 @@ export function LandingPageInput({
                 ? "Drop images here..."
                 : "Describe your animation... (paste or drop images)"
             }
-            className="w-full bg-transparent text-foreground placeholder:text-muted-foreground-dim focus:outline-none resize-none overflow-y-auto text-base min-h-[60px] max-h-[200px]"
+            className="w-full bg-transparent text-foreground placeholder:text-muted-foreground-dim focus:outline-none resize-none overflow-y-auto text-base min-h-15 max-h-50"
             style={{ fieldSizing: "content" }}
             disabled={isNavigating}
           />
@@ -165,6 +262,18 @@ export function LandingPageInput({
                 title="Attach images"
               >
                 <Paperclip className="w-5 h-5" />
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setShowUrlInput((v) => !v)}
+                disabled={isNavigating}
+                className={fetchedUrl ? "text-blue-400" : "text-muted-foreground hover:text-foreground"}
+                title="Attach URL"
+              >
+                <Link className="w-5 h-5" />
               </Button>
 
               <Button
@@ -206,13 +315,13 @@ export function LandingPageInput({
 
         {showCodeExamplesLink && (
           <div className="flex justify-center mt-4">
-            <Link
+            <NextLink
               href="/code-examples"
               className="text-muted-foreground-dim hover:text-muted-foreground text-xs transition-colors flex items-center gap-1"
             >
               View Code examples
               <SquareArrowOutUpRight className="w-3 h-3" />
-            </Link>
+            </NextLink>
           </div>
         )}
       </form>

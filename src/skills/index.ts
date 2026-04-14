@@ -1,17 +1,33 @@
 import { examples } from "@/examples/code";
 
-// Import markdown files at build time
+// Core skills - always included in every request
+import animationsSkill from "./animations.md";
+import timingSkill from "./timing.md";
+
+// Guidance skills - conditionally loaded based on prompt
+import articleContentSkill from "./article-content.md";
 import threeDSkill from "./3d.md";
 import chartsSkill from "./charts.md";
+import fontsSkill from "./fonts.md";
+import gifsSkill from "./gifs.md";
+import imagesSkill from "./images.md";
+import lottieSkill from "./lottie.md";
 import messagingSkill from "./messaging.md";
 import sequencingSkill from "./sequencing.md";
 import socialMediaSkill from "./social-media.md";
 import springPhysicsSkill from "./spring-physics.md";
 import transitionsSkill from "./transitions.md";
 import typographySkill from "./typography.md";
+import videosSkill from "./videos.md";
+
+// Core bundle - injected into SYSTEM_PROMPT for every request
+export const CORE_SKILL_CONTENT = [animationsSkill, timingSkill].join(
+  "\n\n---\n\n",
+);
 
 // Guidance skills (markdown files with patterns/rules)
 const GUIDANCE_SKILLS = [
+  "article-content",
   "charts",
   "typography",
   "social-media",
@@ -20,6 +36,11 @@ const GUIDANCE_SKILLS = [
   "transitions",
   "sequencing",
   "spring-physics",
+  "images",
+  "fonts",
+  "lottie",
+  "videos",
+  "gifs",
 ] as const;
 
 // Example skills (complete working code references)
@@ -41,6 +62,7 @@ export type SkillName = (typeof SKILL_NAMES)[number];
 
 // Map guidance skill names to imported content
 const guidanceSkillContent: Record<(typeof GUIDANCE_SKILLS)[number], string> = {
+  "article-content": articleContentSkill,
   charts: chartsSkill,
   typography: typographySkill,
   "social-media": socialMediaSkill,
@@ -49,6 +71,11 @@ const guidanceSkillContent: Record<(typeof GUIDANCE_SKILLS)[number], string> = {
   transitions: transitionsSkill,
   sequencing: sequencingSkill,
   "spring-physics": springPhysicsSkill,
+  images: imagesSkill,
+  fonts: fontsSkill,
+  lottie: lottieSkill,
+  videos: videosSkill,
+  gifs: gifsSkill,
 };
 
 // Map example skill names to example IDs
@@ -98,7 +125,8 @@ export const SKILL_DETECTION_PROMPT = `Classify this motion graphics prompt into
 A prompt can match multiple categories. Only include categories that are clearly relevant.
 
 Guidance categories (patterns and rules):
-- charts: data visualizations, graphs, histograms, bar charts, pie charts, progress bars, statistics, metrics
+- article-content: prompt contains a "REFERENCE CONTENT FROM URL" section, or references a news article, blog post, web page, or any real-world text content that should be visualized
+- charts: data visualizations, graphs, histograms, bar charts, pie charts, line charts, progress bars, statistics, metrics
 - typography: kinetic text, typewriter effects, text animations, word carousels, animated titles, text-heavy content
 - social-media: Instagram stories, TikTok content, YouTube shorts, social media posts, reels, vertical video
 - messaging: chat interfaces, WhatsApp conversations, iMessage, chat bubbles, text messages, DMs, messenger
@@ -106,6 +134,11 @@ Guidance categories (patterns and rules):
 - transitions: scene changes, fades between clips, slide transitions, wipes, multiple scenes
 - sequencing: multiple elements appearing at different times, staggered animations, choreographed entrances
 - spring-physics: bouncy animations, organic motion, elastic effects, overshoot animations
+- images: static images, photos, logos, icons, or image assets embedded in the animation
+- fonts: custom fonts, Google Fonts, specific typefaces or font styling requirements
+- lottie: Lottie animations from URL or JSON file
+- videos: embedding video clips or footage into the composition
+- gifs: animated GIFs or APNG files in the composition
 
 Code examples (complete working references):
 - example-histogram: animated bar chart with spring animations and @remotion/shapes

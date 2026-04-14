@@ -10,9 +10,8 @@ const Home: NextPage = () => {
   const router = useRouter();
   const [isNavigating, setIsNavigating] = useState(false);
 
-  const handleNavigate = (prompt: string, attachedImages?: string[]) => {
+  const handleNavigate = (prompt: string, attachedImages?: string[], urlContent?: string) => {
     setIsNavigating(true);
-    // Store images in sessionStorage (too large for URL params)
     if (attachedImages && attachedImages.length > 0) {
       sessionStorage.setItem(
         "initialAttachedImages",
@@ -20,6 +19,11 @@ const Home: NextPage = () => {
       );
     } else {
       sessionStorage.removeItem("initialAttachedImages");
+    }
+    if (urlContent) {
+      sessionStorage.setItem("initialUrlContent", urlContent);
+    } else {
+      sessionStorage.removeItem("initialUrlContent");
     }
     const params = new URLSearchParams({ prompt });
     router.push(`/generate?${params.toString()}`);

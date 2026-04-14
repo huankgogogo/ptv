@@ -39,6 +39,54 @@ export function validateGptResponse(response: string): ValidationResult {
 }
 
 /**
+ * Remove natural language prose that the LLM sometimes writes at the top of
+ * the component body before any real code (e.g. "I need to create a blue
+ * animation..."). Works by scanning lines after the component declaration and
+ * dropping any line that looks like a natural-language sentence rather than JS.
+ *
+ * Only strips lines that appear BEFORE the first recognisable JS token so
+ * that valid code inside the body is never touched.
+ */
+export function removeLeadingNaturalLanguage(code: string): string {
+  const componentPattern =
+    /export\s+const\s+\w+\s*=\s*\(\s*\)\s*=>\s*\{/;
+  const match = code.match(componentPattern);
+  if (!match || match.index === undefined) return code;
+
+  const splitAt = match.index + match[0].length;
+  const before = code.slice(0, splitAt);
+  const body = code.slice(splitAt);
+
+  // A line is valid JS if it starts with one of these tokens (after whitespace)
+  const JS_START =
+    /^\s*(?:\/\/|\/\*|\*|const|let|var|return|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|new|typeof|await|async|export|import|\{|\}|<\/?\s*[A-Za-z]|\/[^/]|`|"|'|\(|\[|[0-9]|\+|-|!|~|\$)/;
+
+  const lines = body.split("\n");
+  const result: string[] = [];
+  let foundCode = false;
+
+  for (const line of lines) {
+    if (foundCode) {
+      result.push(line);
+      continue;
+    }
+    const trimmed = line.trim();
+    if (trimmed === "") {
+      result.push(line);
+      continue;
+    }
+    if (JS_START.test(line)) {
+      foundCode = true;
+      result.push(line);
+    }
+    // else: skip — this is a natural language line before any code
+  }
+
+  return before + result.join("\n");
+}
+
+
+/**
  * Extract only the component code, removing any trailing text/commentary.
  * Uses brace counting to find the end of the component.
  */
