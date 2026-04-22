@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  serverExternalPackages: ["@remotion/renderer", "@remotion/bundler"],
   // Turbopack config for Next.js 16+
   turbopack: {
     rules: {

@@ -1,4 +1,5 @@
 import {
+  ensureRemotionImports,
   extractComponentCode,
   removeLeadingNaturalLanguage,
   stripMarkdownFences,
@@ -162,7 +163,8 @@ export function useGenerationApi(): UseGenerationApiReturn {
         // Handle JSON response (non-streaming, for follow-up edits)
         if (contentType.includes("application/json")) {
           const data = await response.json();
-          const { code, summary, metadata } = data;
+          const { code: rawCode, summary, metadata } = data;
+          const code = ensureRemotionImports(rawCode);
           onCodeGenerated?.(code);
           onGenerationComplete?.(code, summary, metadata);
           const validation = validateGptResponse(code);
@@ -227,6 +229,7 @@ export function useGenerationApi(): UseGenerationApiReturn {
         let finalCode = stripMarkdownFences(accumulatedText);
         finalCode = extractComponentCode(finalCode);
         finalCode = removeLeadingNaturalLanguage(finalCode);
+        finalCode = ensureRemotionImports(finalCode);
         onCodeGenerated?.(finalCode);
         onClearPendingMessage?.();
         onGenerationComplete?.(

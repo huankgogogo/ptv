@@ -87,6 +87,54 @@ export function removeLeadingNaturalLanguage(code: string): string {
 
 
 /**
+ * Ensure that Remotion identifiers used in the code are present in the import.
+ * Prevents "X is not defined" runtime errors caused by incomplete import statements.
+ */
+export function ensureRemotionImports(code: string): string {
+  const REMOTION_EXPORTS = [
+    "useCurrentFrame",
+    "useVideoConfig",
+    "AbsoluteFill",
+    "interpolate",
+    "spring",
+    "Sequence",
+    "Easing",
+    "Series",
+    "Img",
+    "staticFile",
+    "Video",
+    "Audio",
+    "Loop",
+    "Freeze",
+    "OffthreadVideo",
+    "getInputProps",
+  ];
+
+  const remotionImportRegex =
+    /import\s*\{([^}]+)\}\s*from\s*["']remotion["']/;
+  const match = code.match(remotionImportRegex);
+  if (!match) return code;
+
+  const currentImports = new Set(
+    match[1].split(",").map((s) => s.trim()).filter(Boolean),
+  );
+
+  // Check code outside the import line for usage of each symbol
+  const codeWithoutImport = code.replace(match[0], "");
+  const missing: string[] = [];
+  for (const name of REMOTION_EXPORTS) {
+    if (!currentImports.has(name) && new RegExp(`\\b${name}\\b`).test(codeWithoutImport)) {
+      missing.push(name);
+    }
+  }
+
+  if (missing.length === 0) return code;
+
+  const allImports = [...currentImports, ...missing].join(", ");
+  return code.replace(match[0], `import { ${allImports} } from "remotion"`);
+}
+
+/**
  * Extract only the component code, removing any trailing text/commentary.
  * Uses brace counting to find the end of the component.
  */

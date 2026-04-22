@@ -26,6 +26,7 @@
     "@remotion/lottie": "4.0.446",
     "@remotion/paths": "4.0.446",
     "@remotion/player": "4.0.446",
+    "@remotion/renderer": "^4.0.448",
     "@remotion/shapes": "4.0.446",
     "@remotion/tailwind-v4": "4.0.446",
     "@remotion/three": "4.0.446",

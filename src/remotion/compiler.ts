@@ -15,10 +15,14 @@ import { wipe } from "@remotion/transitions/wipe";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   AbsoluteFill,
+  Easing,
   Img,
   Sequence,
+  Series,
+  Video,
   interpolate,
   spring,
+  staticFile,
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
@@ -109,6 +113,10 @@ export function compileCode(code: string): CompilationResult {
       spring,
       Sequence,
       Img,
+      Easing,
+      Series,
+      Video,
+      staticFile,
     };
 
     const wrappedCode = `${transpiled.code}\nreturn DynamicAnimation;`;
@@ -127,6 +135,10 @@ export function compileCode(code: string): CompilationResult {
       "spring",
       "Sequence",
       "Img",
+      "Easing",
+      "Series",
+      "Video",
+      "staticFile",
       "useState",
       "useEffect",
       "useMemo",
@@ -173,6 +185,10 @@ export function compileCode(code: string): CompilationResult {
       spring,
       Sequence,
       Img,
+      Easing,
+      Series,
+      Video,
+      staticFile,
       useState,
       useEffect,
       useMemo,

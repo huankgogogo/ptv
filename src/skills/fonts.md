@@ -44,9 +44,7 @@ const { fontFamily } = loadFont("normal", {
 
 export const Title: React.FC<{ text: string }> = ({ text }) => {
   return (
-    <h1 style={{ fontFamily, fontSize: 80, fontWeight: "bold" }}>
-      {text}
-    </h1>
+    <h1 style={{ fontFamily, fontSize: 80, fontWeight: "bold" }}>{text}</h1>
   );
 };
 ```
@@ -73,7 +71,15 @@ Loading multiple weights:
 
 ```tsx
 await Promise.all([
-  loadFont({ family: "Inter", url: staticFile("Inter-Regular.woff2"), weight: "400" }),
-  loadFont({ family: "Inter", url: staticFile("Inter-Bold.woff2"), weight: "700" }),
+  loadFont({
+    family: "Inter",
+    url: staticFile("Inter-Regular.woff2"),
+    weight: "400",
+  }),
+  loadFont({
+    family: "Inter",
+    url: staticFile("Inter-Bold.woff2"),
+    weight: "700",
+  }),
 ]);
 ```
