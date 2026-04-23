@@ -3,8 +3,10 @@
 import { Button } from "@/components/ui/button";
 import { Download, HardDrive } from "lucide-react";
 import { useEffect, useRef } from "react";
+import type { ComponentType } from "react";
 import { useLocalRendering } from "../../../helpers/use-local-rendering";
 import { useRendering } from "../../../helpers/use-rendering";
+import { useClientRender } from "../../../hooks/useClientRender";
 import { DownloadButton } from "./DownloadButton";
 import { ErrorComp } from "./Error";
 import { ProgressBar } from "./ProgressBar";
@@ -13,7 +15,8 @@ export const RenderControls: React.FC<{
   code: string;
   durationInFrames: number;
   fps: number;
-}> = ({ code, durationInFrames, fps }) => {
+  component: ComponentType | null;
+}> = ({ code, durationInFrames, fps, component }) => {
   const { renderMedia, state, undo } = useRendering({
     code,
     durationInFrames,
@@ -25,9 +28,24 @@ export const RenderControls: React.FC<{
     undo: localUndo,
   } = useLocalRendering({ code, durationInFrames, fps });
 
+  const {
+    state: clientState,
+    startRender: startClientRender,
+    reset: resetClientRender,
+    isSupported: isClientRenderSupported,
+  } = useClientRender({
+    component,
+    composition: {
+      fps,
+      durationInFrames,
+      width: 1920,
+      height: 1080,
+    },
+    inputProps: { code },
+  });
+
   const previousPropsRef = useRef({ code, durationInFrames, fps });
 
-  // Reset rendering state when code, duration, or fps changes
   useEffect(() => {
     const prev = previousPropsRef.current;
     const hasChanged =
@@ -38,11 +56,11 @@ export const RenderControls: React.FC<{
     if (hasChanged) {
       if (state.status !== "init") undo();
       if (localState.status !== "init") localUndo();
+      if (clientState.status !== "init") resetClientRender();
     }
     previousPropsRef.current = { code, durationInFrames, fps };
-  }, [code, durationInFrames, fps, state.status, undo, localState.status, localUndo]);
+  }, [code, durationInFrames, fps, state.status, undo, localState.status, localUndo, clientState.status, resetClientRender]);
 
-  // Local render done → auto-trigger download
   useEffect(() => {
     if (localState.status === "done") {
       const a = document.createElement("a");
@@ -52,12 +70,23 @@ export const RenderControls: React.FC<{
     }
   }, [localState]);
 
+  useEffect(() => {
+    if (clientState.status === "done") {
+      const url = URL.createObjectURL(clientState.blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "video.webm";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  }, [clientState]);
+
   const isLocalActive =
     localState.status === "bundling" || localState.status === "rendering";
   const isCloudActive =
     state.status === "invoking" || state.status === "rendering";
+  const isClientActive = clientState.status === "rendering";
 
-  // Cloud render states
   if (state.status === "rendering") {
     return <ProgressBar progress={state.progress} />;
   }
@@ -66,7 +95,6 @@ export const RenderControls: React.FC<{
     return <DownloadButton state={state} undo={undo} />;
   }
 
-  // Local render states
   if (localState.status === "bundling") {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -102,12 +130,35 @@ export const RenderControls: React.FC<{
     );
   }
 
-  // Init / error states — show both buttons
+  if (clientState.status === "rendering") {
+    return (
+      <div className="flex flex-col gap-2 w-full">
+        <ProgressBar progress={clientState.progress} />
+        <div className="text-xs text-muted-foreground text-center">
+          {clientState.statusMessage}
+        </div>
+      </div>
+    );
+  }
+
+  if (clientState.status === "done") {
+    return (
+      <div className="flex items-center gap-2">
+        <Button variant="secondary" onClick={resetClientRender}>
+          <UndoIcon />
+        </Button>
+        <div className="text-sm text-muted-foreground">
+          Video downloaded successfully
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex gap-2">
         <Button
-          disabled={isCloudActive || isLocalActive || !code}
+          disabled={isCloudActive || isLocalActive || isClientActive || !code}
           loading={state.status === "invoking"}
           onClick={renderMedia}
         >
@@ -116,18 +167,31 @@ export const RenderControls: React.FC<{
         </Button>
         <Button
           variant="secondary"
-          disabled={isCloudActive || isLocalActive || !code}
+          disabled={isCloudActive || isLocalActive || isClientActive || !code}
           onClick={renderLocal}
         >
           <HardDrive className="w-4 h-4 mr-2" />
           Export Locally
         </Button>
+        {isClientRenderSupported && component && (
+          <Button
+            variant="secondary"
+            disabled={isCloudActive || isLocalActive || isClientActive || !code}
+            onClick={startClientRender}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Browser Export
+          </Button>
+        )}
       </div>
       {state.status === "error" && (
         <ErrorComp message={state.error.message} />
       )}
       {localState.status === "error" && (
         <ErrorComp message={localState.error.message} />
+      )}
+      {clientState.status === "error" && (
+        <ErrorComp message={clientState.error.message} />
       )}
     </div>
   );

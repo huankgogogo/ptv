@@ -154,6 +154,7 @@ export const AnimationPlayer: React.FC<AnimationPlayerProps> = ({
             code={code}
             durationInFrames={durationInFrames}
             fps={fps}
+            component={Component}
           />
           <SettingsModal
             durationInFrames={durationInFrames}
