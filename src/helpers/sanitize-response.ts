@@ -130,7 +130,7 @@ export function ensureRemotionImports(code: string): string {
 
   if (missing.length === 0) return code;
 
-  const allImports = [...currentImports, ...missing].join(", ");
+  const allImports = [...Array.from(currentImports), ...missing].join(", ");
   return code.replace(match[0], `import { ${allImports} } from "remotion"`);
 }
 
