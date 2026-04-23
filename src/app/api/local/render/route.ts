@@ -9,7 +9,7 @@ import { COMP_NAME } from "../../../../../types/constants";
 import { localRenderStore } from "../../../../lib/local-render-store";
 
 export const runtime = "nodejs";
-export const maxDuration = 600;
+export const maxDuration = 300;
 
 // Cache the bundle to avoid re-bundling on every render
 let bundleCache: string | null = null;
